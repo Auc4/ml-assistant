@@ -1,4 +1,4 @@
-model,quantization,context_length,file_size_gb,peak_ram_gb,tokens_per_second
-qwen2.5:7b-instruct-q3_K_M,Q3_K_M,2048,3.55,4.11,25.68
-qwen2.5:7b-instruct-q4_K_M,Q4_K_M,2048,4.36,4.94,29.91
-qwen2.5:7b-instruct-q8_0,Q8_0,2048,7.54,8.23,12.58
+model,quantization,context_length,file_size_gb,peak_ram_gb,peak_vram_gb,processor_detected,tokens_per_second
+qwen2.5:7b-instruct-q3_K_M,Q3_K_M,2048,3.55,4.20,0.00,CPU,7.86
+qwen2.5:7b-instruct-q4_K_M,Q4_K_M,2048,4.36,5.06,0.00,CPU,6.77
+qwen2.5:7b-instruct-q8_0,Q8_0,2048,7.54,8.29,0.00,CPU,4.26

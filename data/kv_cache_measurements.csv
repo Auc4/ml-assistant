@@ -1,0 +1,4 @@
+context_length,prompt_eval_count,eval_count,peak_ram_gb,peak_vram_gb,processor_detected,tokens_per_second,prompt_tokens_per_second,prompt_eval_latency_sec,total_duration_sec,cpu_temp_before_c,cpu_temp_after_c
+512,512,69,5.25,0.00,CPU,7.09,28.78,17.79,28.79,41.0,46.0
+2048,2048,196,5.34,0.00,CPU,6.63,21.70,94.39,125.52,42.0,46.0
+8192,8192,111,5.67,0.00,CPU,5.40,14.10,581.10,603.39,43.0,48.0
