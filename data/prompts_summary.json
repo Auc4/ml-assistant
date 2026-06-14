@@ -1,0 +1,54 @@
+{
+    "total_tests": 20,
+    "overall_success": 13,
+    "overall_partial": 6,
+    "overall_fail": 1,
+    "overall_success_rate": 0.65,
+    "category_stats": {
+        "pure_chat": {
+            "total": 4,
+            "success": 2,
+            "partial": 2,
+            "fail": 0,
+            "success_rate": 0.5,
+            "average_latency_sec": 31.96,
+            "average_tokens": 250.5
+        },
+        "rag_required": {
+            "total": 5,
+            "success": 4,
+            "partial": 1,
+            "fail": 0,
+            "success_rate": 0.8,
+            "average_latency_sec": 130.35,
+            "average_tokens": 117.4
+        },
+        "tool_required": {
+            "total": 4,
+            "success": 3,
+            "partial": 1,
+            "fail": 0,
+            "success_rate": 0.75,
+            "average_latency_sec": 0.01,
+            "average_tokens": 66.5
+        },
+        "multi_step": {
+            "total": 4,
+            "success": 3,
+            "partial": 1,
+            "fail": 0,
+            "success_rate": 0.75,
+            "average_latency_sec": 0.01,
+            "average_tokens": 77.75
+        },
+        "adversarial_out_of_scope": {
+            "total": 3,
+            "success": 1,
+            "partial": 1,
+            "fail": 1,
+            "success_rate": 0.333,
+            "average_latency_sec": 39.1,
+            "average_tokens": 290.33
+        }
+    }
+}

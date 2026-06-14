@@ -586,6 +586,89 @@ A partir de los experimentos interactivos documentados en la sección D.2, se de
 ### 3. Ejecución Multi-paso y Limitaciones de Inferencia
 * **Encadenamiento de Herramientas:** En la prueba de Gmail, el agente autónomo demostró su capacidad para encadenar múltiples herramientas lógicas en secuencia: primero ejecutó una búsqueda indexada (`search_gmail_messages`) para recuperar un ID de mensaje único (`19ec3895f9cd1f1a`) y, posteriormente, invocó la extracción de contenido por lotes (`get_gmail_messages_content_batch`) de forma automatizada.
 * **Latencia y Sincronización de Turnos:** Se observó un comportamiento mixto en la cola de inferencia debido a las limitaciones del hardware de CPU/GPU o la compresión del modelo. En el caso de Gmail, el modelo completó las llamadas en segundo plano pero retrasó el renderizado del texto plano, requiriendo un segundo turno de interacción (`que herramientas tienes disponibles?`) para forzar el vaciado (*flush*) de los datos reales recuperados en el chat.
+
 # Part E
 
-# Part F
+## E.1 - Test JSON
+
+Creamos un archivo denominado `test_set.json` que se encuentra almacenado dentro de la carpeta `src`. Aquí se estructuran distintos prompts que evaluan los siguientes campos:
+- Pure Chat
+- RAG-required
+- Tool-required
+- Multi-step
+- Adversarial
+
+## E.2 - Evaluación con Diferentes Prompts
+
+Creamos un archivo denominado `evaluation_prompts.py` que se encuentra almacenado dentro de la carpeta `src`. Aquí se evalua de forma automática los prompts generados previamente; incluso para pruebas RAG, dónde se usan recursos creados previamente en la sección de RAG.
+## E.3 - Reporte de Resultados
+
+Se crearon dos archivos distintos, uno denominado `prompts_results.csv` y un `prompts_summary.json`. Estos dos archivos dan información que se debe contrastar para comprender la efectividad del modelo en este escenario automatizado. 
+
+### Resultados
+
+| Property | Value |
+| --- | --- |
+| category_stats | _object_ |
+| overall_fail | 1 |
+| overall_partial | 6 |
+| overall_success | 13 |
+| overall_success_rate | 0.65 |
+| total_tests | 20 |
+#### adversarial_out_of_scope
+| Property | Value |
+| --- | --- |
+| average_latency_sec | 39.1 |
+| average_tokens | 290.33 |
+| fail | 1 |
+| partial | 1 |
+| success | 1 |
+| success_rate | 0.333 |
+| total | 3 |
+
+#### multi_step
+| Property | Value |
+| --- | --- |
+| average_latency_sec | 0.01 |
+| average_tokens | 77.75 |
+| fail | 0 |
+| partial | 1 |
+| success | 3 |
+| success_rate | 0.75 |
+| total | 4 |
+
+#### pure_chat
+| Property | Value |
+| --- | --- |
+| average_latency_sec | 31.96 |
+| average_tokens | 250.5 |
+| fail | 0 |
+| partial | 2 |
+| success | 2 |
+| success_rate | 0.5 |
+| total | 4 |
+
+#### rag_required
+| Property | Value |
+| --- | --- |
+| average_latency_sec | 130.35 |
+| average_tokens | 117.4 |
+| fail | 0 |
+| partial | 1 |
+| success | 4 |
+| success_rate | 0.8 |
+| total | 5 |
+
+#### tool_required
+| Property | Value |
+| --- | --- |
+| average_latency_sec | 0.01 |
+| average_tokens | 66.5 |
+| fail | 0 |
+| partial | 1 |
+| success | 3 |
+| success_rate | 0.75 |
+| total | 4 |
+### Interpretación
+
+Se evaluaron 20 pruebas distribuidas entre conversación general, consultas RAG, uso de herramientas, tareas multi-paso y casos adversariales. Los mejores resultados se obtuvieron en las consultas RAG, con una tasa de éxito del 80%, demostrando que el sistema recupera correctamente información de _The Time Machine_. Aunque la evaluación automática reportó altas tasas de éxito en las categorías _tool_required_ y _multi_step_, una revisión manual mostró que varias pruebas no ejecutaron realmente las herramientas MCP debido a errores de invocación en Goose (revisar el resultado del csv). Por ello, estos resultados deben interpretarse con cautela y considerarse una limitación del proceso de evaluación automática.
