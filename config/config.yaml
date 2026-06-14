@@ -57,7 +57,7 @@ extensions:
     bundled: true
     available_tools: []
   summon:
-    enabled: false
+    enabled: false 
     type: platform
     name: summon
     description: Load knowledge and delegate tasks to subagents
@@ -81,7 +81,7 @@ extensions:
     bundled: true
     available_tools: []
   developer:
-    enabled: false
+    enabled: true 
     type: platform
     name: developer
     description: Write and edit files, and execute shell commands
