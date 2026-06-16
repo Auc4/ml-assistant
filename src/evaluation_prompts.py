@@ -18,8 +18,7 @@ RESULTS_FILE = os.path.join(DOCS_DIR, "prompts_results.csv")
 SUMMARY_FILE = os.path.join(DOCS_DIR, "prompts_summary.json")
 
 # Ajusta este comando si usas Goose CLI de otra forma
-GOOSE_COMMAND = ["goose", "run"]
-
+GOOSE_COMMAND = ["goose", "session"]
 
 def estimate_tokens(text):
     return max(1, len(text) // 4)
@@ -69,21 +68,27 @@ def run_rag(prompt):
 
 def run_goose(prompt):
     """
-    Usa Goose para prompts que requieren herramientas MCP.
-    Si tu Goose usa otro comando, modifica GOOSE_COMMAND.
+    Ejecuta Goose en modo sesión para permitir tools + multi-step reasoning.
     """
+
     start = time.time()
 
     try:
         result = subprocess.run(
-            GOOSE_COMMAND + [prompt],
+            GOOSE_COMMAND,
+            input=prompt + "\nexit\n",   # importante: fuerza cierre de sesión
             capture_output=True,
             text=True,
             timeout=600
         )
 
         latency = time.time() - start
-        output = result.stdout.strip() + "\n" + result.stderr.strip()
+
+        output = (
+            result.stdout.strip()
+            + "\n"
+            + result.stderr.strip()
+        )
 
         total_tokens = estimate_tokens(prompt + output)
 
@@ -91,10 +96,7 @@ def run_goose(prompt):
 
     except Exception as e:
         latency = time.time() - start
-        output = f"ERROR_RUNNING_GOOSE: {e}"
-        total_tokens = estimate_tokens(prompt + output)
-
-        return output, latency, total_tokens
+        return f"ERROR_RUNNING_GOOSE: {e}", latency, estimate_tokens(prompt)
 
 
 def score_response(output, expected_keywords):
