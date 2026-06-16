@@ -101,3 +101,15 @@ def get_cpu_temperature():
         pass
 
     return None
+
+if __name__ == "__main__":
+
+    contextos = [512, 2048, 8192, 16384]
+
+    if CSV_FILE_B.exists():
+        CSV_FILE_B.unlink()
+
+    for ctx in contextos:
+        run_kv_benchmark(ctx)
+
+    print(f"\n🎉 Experimento finalizado -> {CSV_FILE_B}")
