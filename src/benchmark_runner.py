@@ -4,15 +4,35 @@ import os
 import threading
 import requests
 import psutil
+from pathlib import Path
+
+# ─────────────────────────────────────────────
+# API endpoints
+# ─────────────────────────────────────────────
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 TAGS_URL = "http://localhost:11434/api/tags"
 PS_URL = "http://localhost:11434/api/ps"
-CSV_FILE = "data/measurements.csv"
+
+# ─────────────────────────────────────────────
+# Project paths (REPRODUCIBLE)
+# ─────────────────────────────────────────────
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+OUTPUT_FILE = DATA_DIR / "outputs" / "kv_cache_measurements.csv"
+
+# ─────────────────────────────────────────────
+# Global monitoring state
+# ─────────────────────────────────────────────
 
 monitoring = False
 peak_ram_used = 0
 
+
+# ─────────────────────────────────────────────
+# Model management
+# ─────────────────────────────────────────────
 
 def unload_model(model_name):
     try:
@@ -32,6 +52,10 @@ def unload_model(model_name):
         print(f"⚠️ Error descargando modelo: {e}")
 
 
+# ─────────────────────────────────────────────
+# RAM monitoring
+# ─────────────────────────────────────────────
+
 def monitor_ollama_ram():
     global monitoring, peak_ram_used
     peak_ram_used = 0
@@ -41,7 +65,7 @@ def monitor_ollama_ram():
 
         for proc in psutil.process_iter(["pid", "name"]):
             try:
-                name = proc.info["name"]
+                name = proc.info.get("name")
 
                 if name and "ollama" in name.lower():
                     p = psutil.Process(proc.info["pid"])
@@ -50,11 +74,13 @@ def monitor_ollama_ram():
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        if current_total_rss > peak_ram_used:
-            peak_ram_used = current_total_rss
-
+        peak_ram_used = max(peak_ram_used, current_total_rss)
         time.sleep(0.05)
 
+
+# ─────────────────────────────────────────────
+# Model metadata
+# ─────────────────────────────────────────────
 
 def get_model_file_size(model_name):
     try:
@@ -71,10 +97,6 @@ def get_model_file_size(model_name):
 
 
 def get_vram_usage(model_name):
-    """
-    Lee /api/ps para detectar cuánta VRAM está usando Ollama.
-    Si size_vram ≈ 0, entonces la prueba fue CPU.
-    """
     try:
         data = requests.get(PS_URL, timeout=10).json()
 
@@ -83,10 +105,14 @@ def get_vram_usage(model_name):
                 return model.get("size_vram", 0) / (1024 ** 3)
 
     except Exception as e:
-        print(f"⚠️ Error leyendo uso de VRAM desde /api/ps: {e}")
+        print(f"⚠️ Error leyendo VRAM: {e}")
 
     return 0
 
+
+# ─────────────────────────────────────────────
+# Benchmark execution
+# ─────────────────────────────────────────────
 
 def run_benchmark(model_name, quantization, context_length, prompt):
     global monitoring, peak_ram_used
@@ -127,7 +153,6 @@ def run_benchmark(model_name, quantization, context_length, prompt):
     except Exception as e:
         monitoring = False
         ram_thread.join()
-
         print(f"❌ Error ejecutando benchmark: {e}")
         return
 
@@ -136,28 +161,25 @@ def run_benchmark(model_name, quantization, context_length, prompt):
     monitoring = False
     ram_thread.join()
 
-    total_duration_sec = end_time - start_time
-
+    duration = end_time - start_time
     eval_count = response_data.get("eval_count", 0)
 
-    tokens_per_second = (
-        eval_count / total_duration_sec
-        if total_duration_sec > 0
-        else 0
-    )
+    tokens_per_second = eval_count / duration if duration > 0 else 0
 
     peak_ram = peak_ram_used
     peak_vram = get_vram_usage(model_name)
+    file_size_gb = get_model_file_size(model_name)
 
     processor_detected = "CPU" if peak_vram < 0.1 else "GPU/PARCIAL"
 
-    file_size_gb = get_model_file_size(model_name)
+    # ─────────────────────────────────────────────
+    # Output path handling
+    # ─────────────────────────────────────────────
 
-    file_exists = os.path.isfile(CSV_FILE)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = OUTPUT_FILE.exists()
 
-    os.makedirs(os.path.dirname(CSV_FILE), exist_ok=True)
-
-    with open(CSV_FILE, mode="a", newline="") as f:
+    with open(OUTPUT_FILE, mode="a", newline="") as f:
         writer = csv.writer(f)
 
         if not file_exists:
@@ -186,14 +208,18 @@ def run_benchmark(model_name, quantization, context_length, prompt):
     print(
         f"✅ Completado -> "
         f"Size: {file_size_gb:.2f} GB | "
-        f"Peak RAM: {peak_ram:.2f} GB | "
-        f"Peak VRAM: {peak_vram:.2f} GB | "
-        f"Modo detectado: {processor_detected} | "
+        f"RAM: {peak_ram:.2f} GB | "
+        f"VRAM: {peak_vram:.2f} GB | "
+        f"Mode: {processor_detected} | "
         f"Speed: {tokens_per_second:.2f} tok/s"
     )
 
     unload_model(model_name)
 
+
+# ─────────────────────────────────────────────
+# Main execution
+# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
 
@@ -220,8 +246,8 @@ if __name__ == "__main__":
         }
     ]
 
-    if os.path.exists(CSV_FILE):
-        os.remove(CSV_FILE)
+    if OUTPUT_FILE.exists():
+        OUTPUT_FILE.unlink()
 
     for model in modelos:
         run_benchmark(
@@ -232,4 +258,4 @@ if __name__ == "__main__":
         )
 
     print("\n🎉 Benchmark finalizado")
-    print(f"📄 Resultados guardados en: {CSV_FILE}")
+    print(f"📄 Resultados guardados en: {OUTPUT_FILE}")

@@ -5,17 +5,25 @@ import subprocess
 import requests
 import os
 from collections import defaultdict
+from pathlib import Path
 
 from rag_pipeline import query_rag
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b-instruct-q4_K_M"
 
-TEST_SET_FILE = "test_set.json"
+# ─────────────────────────────────────────────
+# Project paths (UPDATED)
+# ─────────────────────────────────────────────
 
-DOCS_DIR = "docs"
-RESULTS_FILE = os.path.join(DOCS_DIR, "prompts_results.csv")
-SUMMARY_FILE = os.path.join(DOCS_DIR, "prompts_summary.json")
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+
+TEST_SET_FILE = DATA_DIR / "prompts" / "test_set.json"
+
+OUTPUT_DIR = DATA_DIR / "outputs"
+RESULTS_FILE = OUTPUT_DIR / "prompts_results.csv"
+SUMMARY_FILE = OUTPUT_DIR / "prompts_summary.json"
 
 # Ajusta este comando si usas Goose CLI de otra forma
 GOOSE_COMMAND = ["goose", "session"]
@@ -67,16 +75,12 @@ def run_rag(prompt):
 
 
 def run_goose(prompt):
-    """
-    Ejecuta Goose en modo sesión para permitir tools + multi-step reasoning.
-    """
-
     start = time.time()
 
     try:
         result = subprocess.run(
             GOOSE_COMMAND,
-            input=prompt + "\nexit\n",   # importante: fuerza cierre de sesión
+            input=prompt + "\nexit\n",
             capture_output=True,
             text=True,
             timeout=600
@@ -84,11 +88,7 @@ def run_goose(prompt):
 
         latency = time.time() - start
 
-        output = (
-            result.stdout.strip()
-            + "\n"
-            + result.stderr.strip()
-        )
+        output = result.stdout.strip() + "\n" + result.stderr.strip()
 
         total_tokens = estimate_tokens(prompt + output)
 
@@ -128,7 +128,7 @@ def choose_runner(category):
 
 
 def main():
-    os.makedirs(DOCS_DIR, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     with open(TEST_SET_FILE, "r", encoding="utf-8") as f:
         test_set = json.load(f)

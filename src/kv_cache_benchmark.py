@@ -4,15 +4,32 @@ import os
 import threading
 import requests
 import psutil
+from pathlib import Path
+
+# ─────────────────────────────────────────────
+# API endpoints
+# ─────────────────────────────────────────────
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 PS_URL = "http://localhost:11434/api/ps"
-CSV_FILE_B = "data/kv_cache_measurements.csv"
+
+# ─────────────────────────────────────────────
+# Project paths (UPDATED)
+# ─────────────────────────────────────────────
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+
+CSV_FILE_B = DATA_DIR / "outputs" / "kv_cache_measurements.csv"
+
 MODEL_NAME = "qwen2.5:7b-instruct-q4_K_M"
+
+# ─────────────────────────────────────────────
+# Global monitoring state
+# ─────────────────────────────────────────────
 
 monitoring = False
 peak_ram_used = 0
-
 
 def unload_model():
     try:
@@ -26,6 +43,7 @@ def unload_model():
         )
         print("🧹 Vaciando caché de memoria en Ollama...")
         time.sleep(5)
+
     except Exception as e:
         print(f"⚠️ Error descargando modelo: {e}")
 
@@ -39,7 +57,7 @@ def monitor_ollama_ram():
 
         for proc in psutil.process_iter(["pid", "name"]):
             try:
-                name = proc.info["name"]
+                name = proc.info.get("name")
 
                 if name and "ollama" in name.lower():
                     p = psutil.Process(proc.info["pid"])
@@ -48,9 +66,7 @@ def monitor_ollama_ram():
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        if current_total_rss > peak_ram_used:
-            peak_ram_used = current_total_rss
-
+        peak_ram_used = max(peak_ram_used, current_total_rss)
         time.sleep(0.05)
 
 
@@ -63,7 +79,7 @@ def get_vram_usage():
                 return model.get("size_vram", 0) / (1024 ** 3)
 
     except Exception as e:
-        print(f"⚠️ Error leyendo uso de VRAM desde /api/ps: {e}")
+        print(f"⚠️ Error leyendo VRAM: {e}")
 
     return 0
 
@@ -88,7 +104,7 @@ def run_kv_benchmark(context_length):
 
     unload_model()
 
-    print(f"\n🔥 Evaluando KV Cache en CPU -> Contexto objetivo: {context_length} tokens")
+    print(f"\n🔥 Evaluando KV Cache -> Contexto: {context_length}")
 
     cpu_temp_before = get_cpu_temperature()
 
@@ -130,8 +146,7 @@ def run_kv_benchmark(context_length):
     except Exception as e:
         monitoring = False
         ram_thread.join()
-
-        print(f"❌ Error en la inferencia con contexto {context_length}: {e}")
+        print(f"❌ Error en inferencia: {e}")
         return
 
     end_time = time.time()
@@ -148,15 +163,11 @@ def run_kv_benchmark(context_length):
     prompt_eval_duration_sec = response_data.get("prompt_eval_duration", 0) / 1e9
 
     tokens_per_second = (
-        eval_count / eval_duration_sec
-        if eval_duration_sec > 0
-        else 0
+        eval_count / eval_duration_sec if eval_duration_sec > 0 else 0
     )
 
     prompt_tokens_per_second = (
-        prompt_eval_count / prompt_eval_duration_sec
-        if prompt_eval_duration_sec > 0
-        else 0
+        prompt_eval_count / prompt_eval_duration_sec if prompt_eval_duration_sec > 0 else 0
     )
 
     peak_vram = get_vram_usage()
@@ -164,8 +175,12 @@ def run_kv_benchmark(context_length):
 
     cpu_temp_after = get_cpu_temperature()
 
-    file_exists = os.path.isfile(CSV_FILE_B)
-    os.makedirs(os.path.dirname(CSV_FILE_B), exist_ok=True)
+    # ─────────────────────────────────────────────
+    # Output handling (UPDATED)
+    # ─────────────────────────────────────────────
+
+    CSV_FILE_B.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = CSV_FILE_B.exists()
 
     with open(CSV_FILE_B, mode="a", newline="") as f:
         writer = csv.writer(f)
@@ -202,27 +217,28 @@ def run_kv_benchmark(context_length):
         ])
 
     print(
-        f"✅ Contexto {context_length} listo -> "
+        f"✅ Contexto {context_length} -> "
         f"RAM: {peak_ram_used:.2f} GB | "
         f"VRAM: {peak_vram:.2f} GB | "
         f"Modo: {processor_detected} | "
-        f"Generación: {tokens_per_second:.2f} tok/s | "
-        f"Ingesta prompt: {prompt_eval_duration_sec:.2f} s"
+        f"tok/s: {tokens_per_second:.2f}"
     )
-
-    if cpu_temp_after:
-        print(f"🌡️ Temperatura CPU final: {cpu_temp_after:.1f} °C")
 
     unload_model()
 
 
+# ─────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────
+
 if __name__ == "__main__":
+
     contextos = [512, 2048, 8192, 16384]
 
-    if os.path.exists(CSV_FILE_B):
-        os.remove(CSV_FILE_B)
+    if CSV_FILE_B.exists():
+        CSV_FILE_B.unlink()
 
     for ctx in contextos:
         run_kv_benchmark(ctx)
 
-    print(f"\n🎉 Experimento finalizado. Datos guardados en: {CSV_FILE_B}")
+    print(f"\n🎉 Experimento finalizado -> {CSV_FILE_B}")
